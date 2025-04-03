@@ -150,14 +150,13 @@ The upgrade process has been taken from the following reference documentation, f
 - For production environments, schedule a maintenance window to avoid impact.
 
 **2. Automatic Backup**
-- The -CreateBackup flag generates a JSON file containing the Basic Load Balancer configuration.
+- The -RecoveryBackupPath flag generates a JSON file containing the Basic Load Balancer configuration.
 - The backup does not include external resources such as NSGs, VMs, or old static IPs.
 - Keep the backup in case you need to perform a manual rollback using Restore-AzLoadBalancerConfig.
 
 **3. New Public IP**
 - Standard Load Balancers cannot use the same public IP as the Basic SKU.
-- A new Standard SKU Public IP will be created (e.g. pip-lb-basic-01-std).
-- The public IP address will change — be sure to update DNS or apps referencing the old IP.
+- The Public IP will be upgraded to Standard
 
 **4. Security Rules / NSG**
 - Make sure your NSG (Network Security Group) on the subnet or NIC allows traffic to the new configuration (e.g. port 80).
@@ -178,3 +177,24 @@ The upgrade process has been taken from the following reference documentation, f
 
 **8. Manual Rollback (if needed)**
 - If something goes wrong, you can restore the Basic LB configuration from the backup
+
+##Module Installation
+
+**Install the module from PowerShell gallery**
+
+```powershell
+Install-Module -Name AzureBasicLoadBalancerUpgrade -Scope CurrentUser -Repository PSGallery -Force
+```
+
+**Validate a scenario**
+
+```powershell
+Start-AzBasicLoadBalancerUpgrade -ResourceGroupName $$resourceGroupName -BasicLoadBalancerName $loadBalancerName -validateScenarioOnly
+```
+
+**Upgrade with alternate backup path**
+
+```powershell
+Start-AzBasicLoadBalancerUpgrade -ResourceGroupName <loadBalancerRGName> -BasicLoadBalancerName $loadBalancerName -StandardLoadBalancerName "$($loadBalancerName)-std" -RecoveryBackupPath C:\BasicLBRecovery
+```
+
