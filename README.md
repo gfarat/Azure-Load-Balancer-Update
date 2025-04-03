@@ -2,7 +2,7 @@
 
 ## Create Lab Envinroment
 
-In this first session, we'll create a Load Balancer Basic to migrate the version to Standard.
+In this first stage, we will continue with the creation of the Lab to test the migration of LB from Basic to Standard.
 
 ```powershell
 # ==============================================
@@ -107,3 +107,35 @@ $vmConfig = New-AzVMConfig -VMName $vmName -VMSize $vmSize |
 New-AzVM -ResourceGroupName $resourceGroupName -Location $location -VM $vmConfig
 
 ```
+## Enable IIS and configure the test page
+
+After creating the lab environment, let's enable IIS and set up a test page for this webserver.
+
+Navigate to Operations "Run Command" 
+![image](https://github.com/user-attachments/assets/4656d176-8ea9-41d6-823b-b574161ec2eb)
+
+Then run "RunPowerShellScript"
+![image](https://github.com/user-attachments/assets/f8bd9d24-b554-4832-91d1-eace5a0cee53)
+
+```pooweshell
+# Install IIS with Management Tools
+Add-WindowsFeature Web-Server -IncludeManagementTools
+
+# Remove the iisstart page
+Remove-Item C:\inetpub\wwwroot\iisstart.htm
+
+# Configure the Default pages
+Add-Content -Path "C:\inetpub\wwwroot\Default.htm" -Value "web-lab-loadbalancer -- $($env:computername)"
+```
+
+![image](https://github.com/user-attachments/assets/60aee825-137c-46de-b3fa-484e2ea7bfb4)
+
+Wait for the process to finish - this usually takes a while
+
+![image](https://github.com/user-attachments/assets/fb6fb033-0bd8-4fea-8aa0-518c93d69ef7)
+
+Take LB's public IP address and run a page test. The expected result is this.
+
+![image](https://github.com/user-attachments/assets/3d6c4781-feaf-49b6-9b44-f855b7939e10)
+
+
