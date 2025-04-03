@@ -138,4 +138,43 @@ Take LB's public IP address and run a page test. The expected result is this.
 
 ![image](https://github.com/user-attachments/assets/3d6c4781-feaf-49b6-9b44-f855b7939e10)
 
+## Upgrade a basic load balancer with PowerShell
 
+The upgrade process has been taken from the following reference documentation, for more details and information see the link: https://github.com/Azure/AzLoadBalancerMigration/tree/main/AzureBasicLoadBalancerUpgrade#upgrade-overview
+
+###Important Considerations When Migrating Load Balancer (Basic ➜ Standard)
+
+**1. Connectivity Interruption During Migration**
+- The module reassociates VM NICs to the new Standard Load Balancer backend pool.
+- This can cause a brief network interruption, especially for live traffic workloads.
+- For production environments, schedule a maintenance window to avoid impact.
+
+**2. Automatic Backup**
+- The -CreateBackup flag generates a JSON file containing the Basic Load Balancer configuration.
+- The backup does not include external resources such as NSGs, VMs, or old static IPs.
+- Keep the backup in case you need to perform a manual rollback using Restore-AzLoadBalancerConfig.
+
+**3. New Public IP**
+- Standard Load Balancers cannot use the same public IP as the Basic SKU.
+- A new Standard SKU Public IP will be created (e.g. pip-lb-basic-01-std).
+- The public IP address will change — be sure to update DNS or apps referencing the old IP.
+
+**4. Security Rules / NSG**
+- Make sure your NSG (Network Security Group) on the subnet or NIC allows traffic to the new configuration (e.g. port 80).
+- The new IP may be blocked by existing deny rules if you're using source/destination filters.
+
+**5. Old Resource Cleanup**
+- The module does not delete the Basic Load Balancer or its associated Public IP.
+- You should manually remove them after validating the new Standard LB:
+
+**6. Required Permissions**
+- **"Network Contributor"** Create/modify networking resources (LB, NICs, Public IPs) 
+- **"Virtual Machine Contributor"** Read and modify VM and NIC configurations 
+- **"Reader"** Create and associate backend pools 
+
+**7. NAT Rules and Outbound Rules**
+- The module does not automatically migrate NAT rules or outbound rules.
+- If your Basic Load Balancer has NAT rules (e.g., RDP or SSH), you will need to manually recreate them on the new Standard LB.
+
+**8. Manual Rollback (if needed)**
+- If something goes wrong, you can restore the Basic LB configuration from the backup
