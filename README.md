@@ -201,7 +201,28 @@ Start-AzBasicLoadBalancerUpgrade -ResourceGroupName $resourceGroupName -BasicLoa
 
 **Upgrade with alternate backup path**
 
+If you run the process with the “-RecoveryBackupPath” function, make sure you have created the directory before running it, as it doesn't create it and can cause an error during the migration. In my example, the directory I created was “C:\Temp\BasicLBRecovery” and the BasicLBRecovery directory will contain the backup json.
+
 ```powershell
-Start-AzBasicLoadBalancerUpgrade -ResourceGroupName <loadBalancerRGName> -BasicLoadBalancerName $loadBalancerName -StandardLoadBalancerName "$($loadBalancerName)-std" -RecoveryBackupPath C:\temp\BasicLBRecovery
+Start-AzBasicLoadBalancerUpgrade -ResourceGroupName $resourceGroupName -BasicLoadBalancerName $loadBalancerName -StandardLoadBalancerName "$stdloadBalancerName" -RecoveryBackupPath "C:\temp\BasicLBRecovery" -FollowLog
 ```
+
+LB before running the migration process
+
+![image](https://github.com/user-attachments/assets/cf4703d7-f189-44b0-b046-f16519ada0ac)
+
+LB after running the migration process, note that the SKU has changed and the name has also been changed by the variable configured in powershell.
+
+![image](https://github.com/user-attachments/assets/1c8a6b7c-940d-4d25-8b9c-97de52077b97)
+
+After finishing the process, validate that the backup file was created in the specified directory and validate a completed migration by passing the Basic Load Balancer state file backup and the Standard Load Balancer name
+
+![image](https://github.com/user-attachments/assets/e5ada653-89bd-4f14-b700-304ac95acda1)
+
+```powershell
+Start-AzBasicLoadBalancerUpgrade -validateCompletedMigration -StandardLoadBalancerName "$stdloadBalancerName" -basicLoadBalancerStatePath "C:\Temp\BasicLBRecovery\State_LB_lb-basic-web-01_rg-lab-loadbalancer-01_20250404T1200566613.json"
+```
+If the command returns with no message, it means that the process was successfully executed.
+
+![image](https://github.com/user-attachments/assets/88e21d8d-136d-4980-92e4-0f4dfd36716c)
 
