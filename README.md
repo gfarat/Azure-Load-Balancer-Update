@@ -1,6 +1,6 @@
 # Azure Load Balancer Update
 
-## Create Lab Envinroment
+## Create Lab Environment
 
 In this first stage, we will continue with the creation of the Lab to test the migration of LB from Basic to Standard.
 
@@ -117,7 +117,7 @@ Navigate to Operations "Run Command"
 Then run "RunPowerShellScript"
 ![image](https://github.com/user-attachments/assets/f8bd9d24-b554-4832-91d1-eace5a0cee53)
 
-```pooweshell
+```powershell
 # Install IIS with Management Tools
 Add-WindowsFeature Web-Server -IncludeManagementTools
 
@@ -140,9 +140,9 @@ Take LB's public IP address and run a page test. The expected result is this.
 
 ## Upgrade a basic load balancer with PowerShell
 
-The upgrade process has been taken from the following reference documentation, for more details and information see the link: https://github.com/Azure/AzLoadBalancerMigration/tree/main/AzureBasicLoadBalancerUpgrade#upgrade-overview
+This post builds upon the official documentation, for more details and information not described in this documentation see the link: https://github.com/Azure/AzLoadBalancerMigration/tree/main/AzureBasicLoadBalancerUpgrade#upgrade-overview
 
-###Important Considerations When Migrating Load Balancer (Basic ➜ Standard)
+### Important Considerations When Migrating Load Balancer (Basic ➜ Standard)
 
 **1. Connectivity Interruption During Migration**
 - The module reassociates VM NICs to the new Standard Load Balancer backend pool.
@@ -185,7 +185,7 @@ The upgrade process has been taken from the following reference documentation, f
 
 
 
-##Module Installation
+## Module Installation
 
 **Install the module from PowerShell gallery**
 
@@ -225,4 +225,20 @@ Start-AzBasicLoadBalancerUpgrade -validateCompletedMigration -StandardLoadBalanc
 If the command returns with no message, it means that the process was successfully executed.
 
 ![image](https://github.com/user-attachments/assets/88e21d8d-136d-4980-92e4-0f4dfd36716c)
+
+Validation of the WEB application with the IP preserved after migration.
+
+![image](https://github.com/user-attachments/assets/d389a013-c895-4b31-bf24-b5f809079f40)
+
+## The basic failure recovery procedure is:
+
+1. Address the cause of the migration failure. Check the log file Start-AzBasicLoadBalancerUpgrade.log for details
+2. Remove the new Standard Load Balancer (if created). Depending on which stage of the migration failed, you may have to remove the Standard Load Balancer reference from the Virtual Machine Scale Set or Virtual Machine network interfaces (IP configurations) and Health Probes in order to remove the Standard Load Balancer.
+3. Locate the Basic Load Balancer state backup file. This file will either be in the directory where the script was executed, or at the path specified with the -RecoveryBackupPath parameter during the failed execution. The file is named: State_<basicLBName>_<basicLBRGName>_<timestamp>.json
+4. Rerun the migration script, specifying the -FailedMigrationRetryFilePathLB <BasicLoadBalancerbackupFilePath> and -FailedMigrationRetryFilePathVMSS <VMSSBackupFile> (for Virtual Machine Scaleset backends) parameters instead of -BasicLoadBalancerName or passing the Basic Load Balancer over the pipeline
+
+---
+
+## Frequently Asked Questions (FAQ)
+
 
