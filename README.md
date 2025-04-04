@@ -30,8 +30,8 @@ This guide walks through the process of creating a lab environment in Azure to t
 # ==============================================
 # 1. Variables and Context
 # ==============================================
-$tenantId = "ba249fd3-0485-4c68-8488-b3e345d63447"
-$subscriptionName = "MCAPS"
+$tenantId = "Tenant ID"
+$subscriptionName = "Subscription Name"
 $resourceGroupName = "rg-lab-loadbalancer-01"
 $location = "North Europe"
 
