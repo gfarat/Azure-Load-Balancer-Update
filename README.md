@@ -1,8 +1,30 @@
-# Azure Load Balancer Update
+# Azure Load Balancer Upgrade Lab
+
+This guide walks through the process of creating a lab environment in Azure to test the migration of a **Basic Load Balancer** to a **Standard Load Balancer** using the PowerShell module [`AzureBasicLoadBalancerUpgrade`](https://github.com/Azure/AzLoadBalancerMigration).
+
+---
+
+## Table of Contents
+
+- [Create Lab Environment](#create-lab-environment)
+- [Enable IIS and Configure the Test Page](#enable-iis-and-configure-the-test-page)
+- [Important Considerations](#important-considerations-when-migrating-load-balancer-basic--standard)
+- [Module Installation](#module-installation)
+- [Scenario Validation](#validate-a-scenario)
+- [Run the Upgrade](#upgrade-with-alternate-backup-path)
+- [Validate the Upgrade](#validate-completed-migration)
+- [Failure Recovery Procedure](#the-basic-failure-recovery-procedure-is)
+- [Frequently Asked Questions (FAQ)](#frequently-asked-questions-faq)
+
+---
 
 ## Create Lab Environment
 
-In this first stage, we will continue with the creation of the Lab to test the migration of LB from Basic to Standard.
+> Full PowerShell script to deploy:
+> - Basic Load Balancer
+> - Public IP
+> - Virtual Network/Subnet
+> - Windows VM with NIC associated to LB backend pool
 
 ```powershell
 # ==============================================
@@ -10,16 +32,17 @@ In this first stage, we will continue with the creation of the Lab to test the m
 # ==============================================
 $tenantId = "ba249fd3-0485-4c68-8488-b3e345d63447"
 $subscriptionName = "MCAPS"
-$resourceGroupName = "rg-lab-loadbalancer"
+$resourceGroupName = "rg-lab-loadbalancer-01"
 $location = "North Europe"
 
 # Load Balancer Components
-$publicIpName = "pip-lb-basic"
-$loadBalancerName = "lb-basic-web"
-$frontendConfigName = "frontendConfig"
-$healthProbeName = "probe-http"
-$backendPoolName = "bepool-web"
-$loadBalancingRuleName = "lbrule-http"
+$publicIpName = "pip-lb-basic-01"
+$loadBalancerName = "lb-basic-web-01"
+$stdloadBalancerName = "lb-standard-web-01"
+$frontendConfigName = "frontendConfig-01"
+$healthProbeName = "probe-http-01"
+$backendPoolName = "bepool-web-01"
+$loadBalancingRuleName = "lbrule-http-01"
 $frontendPort = 80
 $backendPort = 80
 $probePort = 80
@@ -27,16 +50,16 @@ $probeInterval = 5
 $probeCount = 2
 
 # VM and Network
-$netPrefix = "lab"
+$netPrefix = "lab-01"
 $vnetName = "$netPrefix-vnet"
 $subnetName = "$netPrefix-subnet"
 $vnetPrefix = "192.168.0.0/24"
 $subnetPrefix = "192.168.0.0/24"
-$nicName = "nic-web-01"
-$vmName = "vm-web-01"
+$nicName = "nic-web"
+$vmName = "vm-web"
 $vmSize = "Standard_B2s"
 $adminUsername = "azureuser"
-$adminPassword = ConvertTo-SecureString "MyS3cure!Pwd2025" -AsPlainText -Force  # ✅ senha válida e aceita
+$adminPassword = ConvertTo-SecureString "MyS3cure!Pwd2025" -AsPlainText -Force
 $imagePublisher = "MicrosoftWindowsServer"
 $imageOffer = "WindowsServer"
 $imageSku = "2022-datacenter"
@@ -107,9 +130,9 @@ $vmConfig = New-AzVMConfig -VMName $vmName -VMSize $vmSize |
 New-AzVM -ResourceGroupName $resourceGroupName -Location $location -VM $vmConfig
 
 ```
-## Enable IIS and configure the test page
+## Enable IIS and Configure the Test Page
 
-After creating the lab environment, let's enable IIS and set up a test page for this webserver.
+After provisioning, run the following in **Run Command** from Azure Portal:
 
 Navigate to Operations "Run Command" 
 ![image](https://github.com/user-attachments/assets/4656d176-8ea9-41d6-823b-b574161ec2eb)
@@ -118,13 +141,8 @@ Then run "RunPowerShellScript"
 ![image](https://github.com/user-attachments/assets/f8bd9d24-b554-4832-91d1-eace5a0cee53)
 
 ```powershell
-# Install IIS with Management Tools
 Add-WindowsFeature Web-Server -IncludeManagementTools
-
-# Remove the iisstart page
 Remove-Item C:\inetpub\wwwroot\iisstart.htm
-
-# Configure the Default pages
 Add-Content -Path "C:\inetpub\wwwroot\Default.htm" -Value "web-lab-loadbalancer -- $($env:computername)"
 ```
 
@@ -140,50 +158,20 @@ Take LB's public IP address and run a page test. The expected result is this.
 
 ## Upgrade a basic load balancer with PowerShell
 
-This post builds upon the official documentation, for more details and information not described in this documentation see the link: https://github.com/Azure/AzLoadBalancerMigration/tree/main/AzureBasicLoadBalancerUpgrade#upgrade-overview
+For more details and information not described in this documentation see the link: https://github.com/Azure/AzLoadBalancerMigration/tree/main/AzureBasicLoadBalancerUpgrade#upgrade-overview
 
-### Important Considerations When Migrating Load Balancer (Basic ➜ Standard)
+## Important Considerations When Migrating Load Balancer (Basic ➜ Standard)
 
-**1. Connectivity Interruption During Migration**
-- The module reassociates VM NICs to the new Standard Load Balancer backend pool.
-- This can cause a brief network interruption, especially for live traffic workloads.
-- For production environments, schedule a maintenance window to avoid impact.
+- Brief **network interruption** may occur.
+- Existing **NSG rules** must allow new Standard LB IP.
+- Public IP is upgraded to **Standard SKU**.
 
-**2. Automatic Backup**
-- The -RecoveryBackupPath flag generates a JSON file containing the Basic Load Balancer configuration.
-- The backup does not include external resources such as NSGs, VMs, or old static IPs.
-- Keep the backup in case you need to perform a manual rollback using Restore-AzLoadBalancerConfig.
-
-**3. New Public IP**
-- Standard Load Balancers cannot use the same public IP as the Basic SKU.
-- The Public IP will be upgraded to Standard
-
-**4. Security Rules / NSG**
-- Make sure your NSG (Network Security Group) on the subnet or NIC allows traffic to the new configuration (e.g. port 80).
-- The new IP may be blocked by existing deny rules if you're using source/destination filters.
-
-**5. Old Resource Cleanup**
-- The module does not delete the Basic Load Balancer or its associated Public IP.
-- You should manually remove them after validating the new Standard LB:
-
-**6. Required Permissions**
+**Required Permissions**
 - **"Network Contributor"** Create/modify networking resources (LB, NICs, Public IPs) 
 - **"Virtual Machine Contributor"** Read and modify VM and NIC configurations 
-- **"Reader"** Create and associate backend pools 
-
-**7. NAT Rules and Outbound Rules**
-- The module does not automatically migrate NAT rules or outbound rules.
-- If your Basic Load Balancer has NAT rules (e.g., RDP or SSH), you will need to manually recreate them on the new Standard LB.
-
-**8. Unsupported Scenarios**
-- Basic Load Balancers with IPV6 frontend IP configurations
-- Basic Load Balancers with a Virtual Machine Scale Set backend pool member where one or more Virtual Machine Scale Set instances have ProtectFromScaleSetActions Instance Protection policies enabled
-- Migrating a Basic Load Balancer to an existing Standard Load Balancer
-
-**9. Manual Rollback (if needed)**
-- If something goes wrong, you can restore the Basic LB configuration from the backup
-
-
+- **"Reader"** Create and associate backend pools
+  
+> ℹ️ See [FAQ](#frequently-asked-questions-faq) for more edge cases.
 
 ## Module Installation
 
@@ -193,13 +181,13 @@ This post builds upon the official documentation, for more details and informati
 Install-Module -Name AzureBasicLoadBalancerUpgrade -Scope CurrentUser -Repository PSGallery -Force
 ```
 
-**Validate a scenario**
+## Validate a Scenario
 
 ```powershell
 Start-AzBasicLoadBalancerUpgrade -ResourceGroupName $resourceGroupName -BasicLoadBalancerName $loadBalancerName -validateScenarioOnly
 ```
 
-**Upgrade with alternate backup path**
+## Upgrade with Alternate Backup Path
 
 If you run the process with the “-RecoveryBackupPath” function, make sure you have created the directory before running it, as it doesn't create it and can cause an error during the migration. In my example, the directory I created was “C:\Temp\BasicLBRecovery” and the BasicLBRecovery directory will contain the backup json.
 
@@ -214,6 +202,8 @@ LB before running the migration process
 LB after running the migration process, note that the SKU has changed and the name has also been changed by the variable configured in powershell.
 
 ![image](https://github.com/user-attachments/assets/1c8a6b7c-940d-4d25-8b9c-97de52077b97)
+
+## Validate Completed Migration
 
 After finishing the process, validate that the backup file was created in the specified directory and validate a completed migration by passing the Basic Load Balancer state file backup and the Standard Load Balancer name
 
@@ -230,15 +220,40 @@ Validation of the WEB application with the IP preserved after migration.
 
 ![image](https://github.com/user-attachments/assets/d389a013-c895-4b31-bf24-b5f809079f40)
 
-## The basic failure recovery procedure is:
+## The Basic Failure Recovery Procedure Is:
 
-1. Address the cause of the migration failure. Check the log file Start-AzBasicLoadBalancerUpgrade.log for details
-2. Remove the new Standard Load Balancer (if created). Depending on which stage of the migration failed, you may have to remove the Standard Load Balancer reference from the Virtual Machine Scale Set or Virtual Machine network interfaces (IP configurations) and Health Probes in order to remove the Standard Load Balancer.
-3. Locate the Basic Load Balancer state backup file. This file will either be in the directory where the script was executed, or at the path specified with the -RecoveryBackupPath parameter during the failed execution. The file is named: State_<basicLBName>_<basicLBRGName>_<timestamp>.json
-4. Rerun the migration script, specifying the -FailedMigrationRetryFilePathLB <BasicLoadBalancerbackupFilePath> and -FailedMigrationRetryFilePathVMSS <VMSSBackupFile> (for Virtual Machine Scaleset backends) parameters instead of -BasicLoadBalancerName or passing the Basic Load Balancer over the pipeline
+1. Check the log file: `Start-AzBasicLoadBalancerUpgrade.log`
+2. Remove the failed Standard LB.
+3. Locate the Basic LB backup file.
+4. Rerun the migration with:
 
----
+```powershell
+-FailedMigrationRetryFilePathLB <BasicLBBackupFilePath>
+```
 
 ## Frequently Asked Questions (FAQ)
 
+### Will this migration cause downtime?
+Yes. The Basic LB is removed before the Standard LB is created.
 
+### Will my frontend IP be preserved?
+Yes. Public IPs are converted to static. Internal IPs are reassigned if available.
+
+### How long does it take?
+Usually a few minutes, depending on configuration complexity.
+
+### What components are migrated?
+- Rules, probes, NATs, backend pools, IPs, tags, NSGs, etc.
+
+### What if my VMs belong to multiple LBs?
+Migrate all at once using `-MultiLBConfig`.
+
+### How do I validate migration success?
+Use `-validateCompletedMigration` with the backup file path.
+
+### What if the upgrade fails mid-migration?
+Fix the issue and rerun using `-FailedMigrationRetryFilePathLB`.
+
+## License
+
+This lab setup is based on the official [AzureBasicLoadBalancerUpgrade](https://github.com/Azure/AzLoadBalancerMigration) project and extended with additional lab scripting and validation steps.
