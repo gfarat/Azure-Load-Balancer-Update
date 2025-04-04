@@ -175,8 +175,15 @@ The upgrade process has been taken from the following reference documentation, f
 - The module does not automatically migrate NAT rules or outbound rules.
 - If your Basic Load Balancer has NAT rules (e.g., RDP or SSH), you will need to manually recreate them on the new Standard LB.
 
-**8. Manual Rollback (if needed)**
+**8. Unsupported Scenarios**
+- Basic Load Balancers with IPV6 frontend IP configurations
+- Basic Load Balancers with a Virtual Machine Scale Set backend pool member where one or more Virtual Machine Scale Set instances have ProtectFromScaleSetActions Instance Protection policies enabled
+- Migrating a Basic Load Balancer to an existing Standard Load Balancer
+
+**9. Manual Rollback (if needed)**
 - If something goes wrong, you can restore the Basic LB configuration from the backup
+
+
 
 ##Module Installation
 
@@ -189,12 +196,12 @@ Install-Module -Name AzureBasicLoadBalancerUpgrade -Scope CurrentUser -Repositor
 **Validate a scenario**
 
 ```powershell
-Start-AzBasicLoadBalancerUpgrade -ResourceGroupName $$resourceGroupName -BasicLoadBalancerName $loadBalancerName -validateScenarioOnly
+Start-AzBasicLoadBalancerUpgrade -ResourceGroupName $resourceGroupName -BasicLoadBalancerName $loadBalancerName -validateScenarioOnly
 ```
 
 **Upgrade with alternate backup path**
 
 ```powershell
-Start-AzBasicLoadBalancerUpgrade -ResourceGroupName <loadBalancerRGName> -BasicLoadBalancerName $loadBalancerName -StandardLoadBalancerName "$($loadBalancerName)-std" -RecoveryBackupPath C:\BasicLBRecovery
+Start-AzBasicLoadBalancerUpgrade -ResourceGroupName <loadBalancerRGName> -BasicLoadBalancerName $loadBalancerName -StandardLoadBalancerName "$($loadBalancerName)-std" -RecoveryBackupPath C:\temp\BasicLBRecovery
 ```
 
